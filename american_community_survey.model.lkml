@@ -20,6 +20,7 @@ explore: fast_facts {
   from: logrecno_bg_map
 
   join: bg_facts {
+    from: bg_facts_w_income
     view_label: "Fast Facts"
     sql_on: ${fast_facts.block_group} = ${bg_facts.logrecno_bg_map_block_group};;
     relationship: one_to_one
