@@ -1,4 +1,4 @@
-view: bg_facts_w_income {
+view: bg_facts {
   # Or, you could make this view a derived table, like this:
   derived_table: {
     sql: WITH answers AS (SELECT *
@@ -202,29 +202,6 @@ view: bg_facts_w_income {
                 AND logrecno_bg_map.sumlevel = CAST(questions.max_sumlevel AS STRING)
           WHERE (_TABLE_SUFFIX = 'Sex_By_Age') AND (questions.question_universe = 'Total Population') AND answers.answer_name not in ('Under 5 years', '5 to 9 years', '10 to 14 years', '15 to 17 years', '65 and 66 years', '67 to 69 years', '70 to 74 years', '75 to 79 years', '80 to 84 years', '85 years and over') AND (((ARRAY_TO_STRING(answers.parent_answers,':')) = 'Male' OR (ARRAY_TO_STRING(answers.parent_answers,':')) = 'Female'))
           GROUP BY 1)
-
-          -- Adding Income --
-          ,
-          aggregate_income as (
-          SELECT
-            SUBSTR(logrecno_bg_map.geoid, 8, 12) AS logrecno_bg_map_block_group,
-            COALESCE(SUM((SAFE_CAST(data_answers.value AS FLOAT64)) ), 0) AS aggregate_income
-          FROM `acs_partitioned3.acs_*`  AS data
-          LEFT JOIN UNNEST(data.answers) as data_answers
-          LEFT JOIN acs.acs_questions_2015  AS questions ON data.question_id = questions.question_id
-          INNER JOIN answers ON data.question_id = answers.question_id
-                      AND data_answers.key = answers.answer_id
-                     -- AND answers.leaf_node = true
-          LEFT JOIN `lookerdata.looker_scratch_2.LR_T8Z0YAI7YZIBCWV55DTAD_logrecno_bg_map` AS logrecno_bg_map ON logrecno_bg_map.row_id = CONCAT(UPPER(data.state_us_abbreviation), CAST(data.logical_record_number AS STRING))
-                AND logrecno_bg_map.sumlevel = CAST(questions.max_sumlevel AS STRING)
-
-          WHERE (_TABLE_SUFFIX LIKE 'Aggregate_Earnings_In_The_Past_12_Months__For_Households')
-          AND (questions.question_universe = 'Households')
---           AND (answers.answer_name = 'Total')
-          GROUP BY 1)
-
-          -- end of Adding Income --
-
           SELECT
             total_population.logrecno_bg_map_block_group,
             CAST(total_population.total_population AS INT64) as total_population,
@@ -241,8 +218,6 @@ view: bg_facts_w_income {
             CAST(under_18.under_18 AS INT64) as under_18,
             CAST(eighteen_to_64.eighteen_to_64 AS INT64) as eighteen_to_64,
             CAST(sixty_five_and_over.sixty_five_and_over AS INT64) as sixty_five_and_over
-            , CAST(aggregate_income.aggregate_income as INT64) as aggregate_income
-
           FROM
             total_population
             LEFT JOIN housing_units on housing_units.logrecno_bg_map_block_group = total_population.logrecno_bg_map_block_group
@@ -257,7 +232,6 @@ view: bg_facts_w_income {
             LEFT JOIN under_18 on under_18.logrecno_bg_map_block_group = total_population.logrecno_bg_map_block_group
             LEFT JOIN eighteen_to_64 on eighteen_to_64.logrecno_bg_map_block_group = total_population.logrecno_bg_map_block_group
             LEFT JOIN sixty_five_and_over on sixty_five_and_over.logrecno_bg_map_block_group = total_population.logrecno_bg_map_block_group
-            LEFT JOIN aggregate_income on aggregate_income.logrecno_bg_map_block_group = total_population.logrecno_bg_map_block_group
           ;;
     persist_for: "1000 hours"
   }
@@ -275,23 +249,6 @@ view: bg_facts_w_income {
     type: sum
     sql: ${TABLE}.total_population ;;
   }
-
-  # Income Measure
-  measure: aggregate_income {
-    hidden: yes
-    type: sum
-    group_label: "Households"
-    sql: ${TABLE}.aggregate_income ;;
-  }
-
-  measure: avg_income_house {
-    type: number
-    group_label: "Households"
-    label: "Average Income per Household"
-    sql: ${aggregate_income}/NULLIF(${housing_units}, 0) ;;
-    value_format_name: usd_0
-  }
-
 
   # Household Measures
   measure: housing_units {
