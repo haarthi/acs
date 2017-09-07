@@ -205,19 +205,23 @@ view: bg_facts_w_income {
 
           -- Adding Income --
           ,
-          income as (
+          aggregate_income as (
           SELECT
             SUBSTR(logrecno_bg_map.geoid, 8, 12) AS logrecno_bg_map_block_group,
-            COALESCE(AVG((SAFE_CAST(data_answers.value AS FLOAT64)) ), 0) AS median_income
+            COALESCE(SUM((SAFE_CAST(data_answers.value AS FLOAT64)) ), 0) AS aggregate_income
           FROM `acs_partitioned3.acs_*`  AS data
           LEFT JOIN UNNEST(data.answers) as data_answers
           LEFT JOIN acs.acs_questions_2015  AS questions ON data.question_id = questions.question_id
-          LEFT JOIN `lookerdata.looker_scratch_2.LR_T87NS1WKODASTK3HYYZDH_logrecno_bg_map` AS logrecno_bg_map ON logrecno_bg_map.row_id = CONCAT(UPPER(data.state_us_abbreviation), CAST(data.logical_record_number AS STRING))
+          INNER JOIN answers ON data.question_id = answers.question_id
+                      AND data_answers.key = answers.answer_id
+                     -- AND answers.leaf_node = true
+          LEFT JOIN `lookerdata.looker_scratch_2.LR_T8Z0YAI7YZIBCWV55DTAD_logrecno_bg_map` AS logrecno_bg_map ON logrecno_bg_map.row_id = CONCAT(UPPER(data.state_us_abbreviation), CAST(data.logical_record_number AS STRING))
                 AND logrecno_bg_map.sumlevel = CAST(questions.max_sumlevel AS STRING)
 
-          WHERE (_TABLE_SUFFIX LIKE 'Median_Household_Income_In_The_Past_12_Months') AND (questions.question_universe = 'Households')
-          GROUP BY 1
-          )
+          WHERE (_TABLE_SUFFIX LIKE 'Aggregate_Earnings_In_The_Past_12_Months__For_Households')
+          AND (questions.question_universe = 'Households')
+--           AND (answers.answer_name = 'Total')
+          GROUP BY 1)
 
           -- end of Adding Income --
 
@@ -237,7 +241,8 @@ view: bg_facts_w_income {
             CAST(under_18.under_18 AS INT64) as under_18,
             CAST(eighteen_to_64.eighteen_to_64 AS INT64) as eighteen_to_64,
             CAST(sixty_five_and_over.sixty_five_and_over AS INT64) as sixty_five_and_over
-            , CAST(income.median_income as INT64) as median_income
+            , CAST(aggregate_income.aggregate_income as INT64) as aggregate_income
+
           FROM
             total_population
             LEFT JOIN housing_units on housing_units.logrecno_bg_map_block_group = total_population.logrecno_bg_map_block_group
@@ -252,7 +257,7 @@ view: bg_facts_w_income {
             LEFT JOIN under_18 on under_18.logrecno_bg_map_block_group = total_population.logrecno_bg_map_block_group
             LEFT JOIN eighteen_to_64 on eighteen_to_64.logrecno_bg_map_block_group = total_population.logrecno_bg_map_block_group
             LEFT JOIN sixty_five_and_over on sixty_five_and_over.logrecno_bg_map_block_group = total_population.logrecno_bg_map_block_group
-            LEFT JOIN income on income.logrecno_bg_map_block_group = total_population.logrecno_bg_map_block_group
+            LEFT JOIN aggregate_income on aggregate_income.logrecno_bg_map_block_group = total_population.logrecno_bg_map_block_group
           ;;
     persist_for: "1000 hours"
   }
@@ -272,11 +277,21 @@ view: bg_facts_w_income {
   }
 
   # Income Measure
-  measure: median_income {
-    description: "Median Income"
-    type: median
-    sql: ${TABLE}.median_income ;;
+  measure: aggregate_income {
+    hidden: yes
+    type: sum
+    group_label: "Households"
+    sql: ${TABLE}.aggregate_income ;;
   }
+
+  measure: avg_income_house {
+    type: number
+    group_label: "Households"
+    label: "Average Income per Household"
+    sql: ${aggregate_income}/NULLIF(${housing_units}, 0) ;;
+    value_format_name: usd_0
+  }
+
 
   # Household Measures
   measure: housing_units {
