@@ -215,7 +215,7 @@ view: bg_facts {
           INNER JOIN answers ON data.question_id = answers.question_id
                       AND data_answers.key = answers.answer_id
                      -- AND answers.leaf_node = true
-          LEFT JOIN `lookerdata.looker_scratch_2.LR_T8Z0YAI7YZIBCWV55DTAD_logrecno_bg_map` AS logrecno_bg_map ON logrecno_bg_map.row_id = CONCAT(UPPER(data.state_us_abbreviation), CAST(data.logical_record_number AS STRING))
+          LEFT JOIN ${logrecno_bg_map.SQL_TABLE_NAME} AS logrecno_bg_map ON logrecno_bg_map.row_id = CONCAT(UPPER(data.state_us_abbreviation), CAST(data.logical_record_number AS STRING))
                 AND logrecno_bg_map.sumlevel = CAST(questions.max_sumlevel AS STRING)
 
           WHERE (_TABLE_SUFFIX LIKE 'Aggregate_Earnings_In_The_Past_12_Months__For_Households')
