@@ -1,4 +1,4 @@
-view: bg_facts_old {
+view: bg_facts {
   # Or, you could make this view a derived table, like this:
   derived_table: {
     sql: WITH answers AS (SELECT *
