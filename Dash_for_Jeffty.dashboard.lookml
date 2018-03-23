@@ -77,7 +77,7 @@
         axisId: bg_facts.pct_hispanic_or_latino
     listen:
       Pop: bg_facts.total_population
-      Pop: bg_facts.pct_hispanic_or_latino
+      Pop2: bg_facts.pct_hispanic_or_latino
     row: 0
     col: 0
     width: 8
@@ -239,8 +239,8 @@
     # explore: fast_facts
     # listens_to_filters: []
     # field: bg_facts.total_population
-  - name: Pop
-    title: Pop
+  - name: Pop2
+    title: Pop2
     type: number_filter
     default_value: ">0.22"
     allow_multiple_values: true
